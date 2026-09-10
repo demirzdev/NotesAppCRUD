@@ -16,6 +16,10 @@ function App() {
 
   const [noteList, setNoteList] = useState<Note[]>([])
 
+  const [editTitle, setEditTitle] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [editingNote, setEditingNote] = useState<number | null>(null)
+
   useEffect(() => {
     const getNotes = async () => {
       const response = await fetch('http://localhost:3000/api/notes')
@@ -33,19 +37,25 @@ function App() {
     event.preventDefault()
 
     const response = await fetch('http://localhost:3000/api/notes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userName,
-        title,
-        content
-      })
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            userName,
+            title,
+            content
+        })
     })
 
+    if (!response.ok) {
+        const error = await response.json()
+        console.log(error.error)
+        return
+    }
+
     const note = await response.json()
-    
+
     setNoteList([...noteList, note])
 
     setUserName("")
@@ -53,8 +63,7 @@ function App() {
     setContent("")
 
     console.log(note.id)
-
-  }
+}
 
   const handleDelete = async (id: number) => {
    console.log("DELETE ID:", id) 
@@ -74,6 +83,63 @@ function App() {
 
   }
 
+  const getNoteDetails = async (id: number) => {
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/notes/${id}`)
+
+      const note = await response.json()
+      console.log(note)
+    }
+    catch (error) {
+      console.error(error)
+    }
+  }
+
+  const updateNotes = async (id: number) => {
+    try {
+        const response = await fetch(
+            `http://localhost:3000/api/notes/${id}`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: editTitle,
+                    content: editContent
+                })
+            }
+        )
+
+        if (!response.ok) {
+            const error = await response.json()
+            console.log(error.error)
+            return
+        }
+
+        const updatedNote = await response.json()
+
+        setNoteList(prevNotes =>
+            prevNotes.map(note =>
+                note.id === updatedNote.id ? updatedNote : note
+            )
+        )
+
+        setEditingNote(null)
+
+        console.log('UPDATED NOTE:', updatedNote)
+
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+  const startEditing = (note: Note) => {
+    setEditingNote(note.id)
+    setEditTitle(note.title)
+    setEditContent(note.content)
+}
 
 
   return (
@@ -114,15 +180,48 @@ function App() {
           </form>
 
           <div>
-              {noteList.map((note, index) => (
-                <div key={note.id}>
-                  <h3>{note.title}</h3>
-                  <p>{note.content}</p>
-                  <small>{note.user_name}</small>
+              {noteList.map((note) => (
+  <div key={note.id}>
 
-                  <button onClick={() => handleDelete(note.id)}>Delete</button>
-                </div>
-              ))}
+    {editingNote === note.id ? (
+      <>
+        <input
+          type="text"
+          value={editTitle}
+          onChange={(event) => setEditTitle(event.target.value)}
+        />
+
+        <input
+          type="text"
+          value={editContent}
+          onChange={(event) => setEditContent(event.target.value)}
+        />
+
+        <button onClick={() => updateNotes(note.id)}>Save</button>
+        <button onClick={() => setEditingNote(null)}>Cancel</button>
+      </>
+    ) : (
+      <>
+        <h3>{note.title}</h3>
+        <p>{note.content}</p>
+        <small>{note.user_name}</small>
+
+        <button onClick={() => handleDelete(note.id)}>
+          Delete
+        </button>
+
+        <button onClick={() => getNoteDetails(note.id)}>
+          Details
+        </button>
+
+        <button onClick={() => startEditing(note)}>
+          Edit
+        </button>
+      </>
+    )}
+
+  </div>
+))}
          </div>
 
          <div>
